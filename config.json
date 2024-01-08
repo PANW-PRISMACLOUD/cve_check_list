@@ -1,0 +1,7 @@
+{
+  "API_BASE_URL": "https://us-east1.cloud.twistlock.com/pandemoapp2-1234",
+  "CVE_API_ENDPOINT": "/api/v1/cves",
+  "CVE_LIST_FILE": "cve_list.json",
+  "CVE_DETAILS_FILE": "cve_details.json",
+  "MAX_WORKERS": 10
+}
