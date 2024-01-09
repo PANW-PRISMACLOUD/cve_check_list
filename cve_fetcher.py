@@ -2,8 +2,10 @@ import requests
 import logging
 from typing import Dict, List, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from requests.adapters import HTTPAdapter, Retry
 from tqdm import tqdm
 from config import Config
+import time
 
 
 class CVEFetcher:
@@ -11,6 +13,8 @@ class CVEFetcher:
         self.base_url = config.app_config.api_base_url
         self.cve_api_endpoint = config.app_config.cve_api_endpoint
         self.full_api_url = f"{self.base_url}{self.cve_api_endpoint}"
+        self.max_workers = config.app_config.max_workers
+        self.session = self._initialize_session()
         self.headers = {
             "Accept": "application/json, text/plain, */*",
             "Accept-Encoding": "gzip, deflate, br",
@@ -29,21 +33,24 @@ class CVEFetcher:
             "Sec-Ch-Ua-Mobile": "?0",
             "Sec-Ch-Ua-Platform": "\"macOS\""
         }
-        self.max_workers = config.app_config.max_workers
+
+    def _initialize_session(self) -> requests.Session:
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[504])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+        return session
 
     def fetch_cve_details(self, cve_list: List[str]) -> Dict[str, Optional[Dict]]:
         results: Dict[str, Optional[Dict]] = {}
-        found_count = 0
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor, tqdm(total=len(cve_list)) as progress:
             future_to_cve = {executor.submit(self._fetch_single_cve, cve): cve for cve in cve_list}
-
             for future in as_completed(future_to_cve):
                 cve, result = future.result()
                 results[cve] = result
-                found_count += 1 if result else 0
                 progress.update(1)
 
+        found_count = sum(1 for result in results.values() if result)
         found_percentage = (found_count / len(cve_list)) * 100 if cve_list else 0
         return {
             "results": results,
@@ -56,8 +63,51 @@ class CVEFetcher:
 
     def _fetch_single_cve(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
         params = {"id": cve_id, "project": "Central Console"}
+        backoff_time = 0.1  # Starting backoff time in seconds
+
+        for attempt in range(3):  # Number of attempts
+            try:
+                response = self.session.get(self.full_api_url, headers=self.headers, params=params)
+                response.raise_for_status()
+                return cve_id, response.json()
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429:
+                    logging.warning(f"Rate limit hit for CVE {cve_id}, retrying in {backoff_time} seconds...")
+                    time.sleep(backoff_time)
+                    backoff_time *= 2  # Exponential backoff
+                    continue
+                else:
+                    logging.error(f"HTTP error for CVE {cve_id}: {e.response.status_code}, {e.response.text}")
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Error fetching CVE {cve_id}: {e}")
+            break  # Exit loop if not a 429 error
+
+        return cve_id, None
+
+    def _fetch_single_cve_deprecated2(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
+        params = {"id": cve_id, "project": "Central Console"}
         try:
-            response = requests.get(self.full_api_url, headers=self.headers, params=params)
+            response = self.session.get(self.full_api_url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return cve_id, response.json()
+        except requests.exceptions.HTTPError as e:
+            logging.error(f"HTTP error for CVE {cve_id}: {e.response.status_code}, {e.response.text}")
+        except requests.exceptions.ConnectionError:
+            logging.error(f"Connection error for CVE {cve_id}")
+        except requests.exceptions.Timeout:
+            logging.error(f"Timeout error for CVE {cve_id}")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error fetching CVE {cve_id}: {e}")
+        return cve_id, None
+
+    def _fetch_single_cve_deprecated(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
+        session = requests.Session()
+        retries = Retry(total=3, backoff_factor=1, status_forcelist=[504])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+
+        params = {"id": cve_id, "project": "Central Console"}
+        try:
+            response = session.get(self.full_api_url, headers=self.headers, params=params)
             response.raise_for_status()
             return cve_id, response.json()
         except requests.RequestException as e:
