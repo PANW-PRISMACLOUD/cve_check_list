@@ -5,16 +5,26 @@ from typing import Any, List, Dict, Optional
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 class JSONFileHandler:
+    """
+    Class to handle JSON file operations.
+    """
+
     def __init__(self, filename: str):
+        """
+        Initialize the JSONFileHandler with the specified filename.
+        
+        Args:
+            filename (str): Path to the JSON file.
+        """
         self.filename = filename
 
     def load(self) -> Optional[Dict[str, Any]]:
         """
         Load data from a JSON file.
-
-        :return: Parsed JSON data as a dictionary or None if an error occurs.
+        
+        Returns:
+            Optional[Dict[str, Any]]: Parsed JSON data as a dictionary or None if an error occurs.
         """
         try:
             with open(self.filename, "r") as file:
@@ -28,8 +38,9 @@ class JSONFileHandler:
     def save(self, data: Dict[str, Any]):
         """
         Save data to a JSON file.
-
-        :param data: Data to be saved.
+        
+        Args:
+            data (Dict[str, Any]): Data to be saved.
         """
         try:
             with open(self.filename, "w") as file:
@@ -38,13 +49,15 @@ class JSONFileHandler:
         except IOError as e:
             logging.error(f"Error writing to file {self.filename}: {e}")
 
-
 def load_cve_list(filename: str) -> List[str]:
     """
     Load CVE list from a specified file.
-
-    :param filename: Path to the file containing the CVE list.
-    :return: A list of CVEs or an empty list if the file cannot be processed.
+    
+    Args:
+        filename (str): Path to the file containing the CVE list.
+    
+    Returns:
+        List[str]: A list of CVEs or an empty list if the file cannot be processed.
     """
     try:
         with open(filename, "r") as file:
@@ -58,13 +71,13 @@ def load_cve_list(filename: str) -> List[str]:
         logging.error(f"An unexpected error occurred while loading {filename}: {e}")
     return []
 
-
 def save_cve_details(filename: str, cve_details: Dict[str, Any]):
     """
     Save CVE details to a specified file.
-
-    :param filename: Path to the file where the CVE details will be saved.
-    :param cve_details: CVE details to be saved.
+    
+    Args:
+        filename (str): Path to the file where the CVE details will be saved.
+        cve_details (Dict[str, Any]): CVE details to be saved.
     """
     handler = JSONFileHandler(filename)
     handler.save(cve_details)

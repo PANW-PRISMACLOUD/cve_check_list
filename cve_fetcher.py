@@ -7,9 +7,15 @@ from tqdm import tqdm
 from config import Config
 import time
 
-
 class CVEFetcher:
+    """
+    Class to fetch CVE details using a multi-threaded approach.
+    """
+
     def __init__(self, config: Config):
+        """
+        Initialize the CVEFetcher with configuration settings.
+        """
         self.base_url = config.app_config.api_base_url
         self.cve_api_endpoint = config.app_config.cve_api_endpoint
         self.full_api_url = f"{self.base_url}{self.cve_api_endpoint}"
@@ -28,19 +34,28 @@ class CVEFetcher:
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-origin",
             "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
-            "Sec-Ch-Ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": "\"macOS\""
+                           "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         }
 
     def _initialize_session(self) -> requests.Session:
+        """
+        Initialize a requests session with retry logic.
+        """
         session = requests.Session()
         retries = Retry(total=3, backoff_factor=1, status_forcelist=[504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
         return session
 
     def fetch_cve_details(self, cve_list: List[str]) -> Dict[str, Optional[Dict]]:
+        """
+        Fetch details for a list of CVEs using multi-threading.
+        
+        Args:
+            cve_list (List[str]): List of CVE IDs to fetch details for.
+        
+        Returns:
+            Dict[str, Optional[Dict]]: Dictionary containing CVE details and statistics.
+        """
         results: Dict[str, Optional[Dict]] = {}
 
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor, tqdm(total=len(cve_list)) as progress:
@@ -62,6 +77,15 @@ class CVEFetcher:
         }
 
     def _fetch_single_cve(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
+        """
+        Fetch details for a single CVE.
+        
+        Args:
+            cve_id (str): CVE ID to fetch details for.
+        
+        Returns:
+            Tuple[str, Optional[Dict]]: Tuple containing CVE ID and its details.
+        """
         params = {"id": cve_id, "project": "Central Console"}
         backoff_time = 0.1  # Starting backoff time in seconds
 
@@ -83,33 +107,3 @@ class CVEFetcher:
             break  # Exit loop if not a 429 error
 
         return cve_id, None
-
-    def _fetch_single_cve_deprecated2(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
-        params = {"id": cve_id, "project": "Central Console"}
-        try:
-            response = self.session.get(self.full_api_url, headers=self.headers, params=params)
-            response.raise_for_status()
-            return cve_id, response.json()
-        except requests.exceptions.HTTPError as e:
-            logging.error(f"HTTP error for CVE {cve_id}: {e.response.status_code}, {e.response.text}")
-        except requests.exceptions.ConnectionError:
-            logging.error(f"Connection error for CVE {cve_id}")
-        except requests.exceptions.Timeout:
-            logging.error(f"Timeout error for CVE {cve_id}")
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error fetching CVE {cve_id}: {e}")
-        return cve_id, None
-
-    def _fetch_single_cve_deprecated(self, cve_id: str) -> Tuple[str, Optional[Dict]]:
-        session = requests.Session()
-        retries = Retry(total=3, backoff_factor=1, status_forcelist=[504])
-        session.mount('https://', HTTPAdapter(max_retries=retries))
-
-        params = {"id": cve_id, "project": "Central Console"}
-        try:
-            response = session.get(self.full_api_url, headers=self.headers, params=params)
-            response.raise_for_status()
-            return cve_id, response.json()
-        except requests.RequestException as e:
-            logging.error(f"Request failed for CVE {cve_id}: {e}")
-            return cve_id, None

@@ -1,6 +1,6 @@
 # `cve_list_check` 🚀
 
-Welcome to the `cve_list_check` project! 🎉 This program is fetching Common Vulnerabilities and Exposures (CVEs) from the Prisma Cloud CVE Viewer, checking their alignment with intelligence streams, and preserving the CVE details in a neatly organized `cve_details.json` file. But hold on, there's more! 🌟
+Welcome to the `cve_list_check` project! 🎉 This program fetches Common Vulnerabilities and Exposures (CVEs) from the Prisma Cloud CVE Viewer, checks their alignment with intelligence streams, and preserves the CVE details in a neatly organized `cve_details.json` file. But hold on, there's more! 🌟
 
 ## How to Use the Program
 
@@ -98,7 +98,6 @@ That's it! You've successfully harnessed the power of the `cve_list_check` progr
 
   - Stylishly saves the results in a JSON file.
 
-  - Showcases the process's completion and offers captivating statistics regarding the fetched CVEs, all with a touch of finesse. 🎩🔥
+## Additional Information
 
-
-**🎉 Congratulations! You are now equipped to embark on your CVE-hunting adventures with `cve_list_check`. ** 🎉
+For more details on how to customize and extend the functionality of the `cve_list_check` program, refer to the source code and comments within each file. Happy coding! 🎉

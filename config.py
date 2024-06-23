@@ -3,14 +3,15 @@ import argparse
 import logging
 from dotenv import load_dotenv
 from util import load_json_file
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
-# Define a Pydantic model for configuration validation
 class AppConfig(BaseModel):
+    """
+    Pydantic model for application configuration.
+    """
     auth_key: str
     jwt_token: str
     api_base_url: str
@@ -19,8 +20,10 @@ class AppConfig(BaseModel):
     details_file: str
     max_workers: int
 
-
 class Config:
+    """
+    Configuration class to load and validate application settings.
+    """
     DEFAULT_CONFIG_FILE = "config.json"
 
     _KEYS = {
@@ -34,6 +37,9 @@ class Config:
     }
 
     def __init__(self):
+        """
+        Initialize the configuration by loading from environment variables, CLI arguments, and config file.
+        """
         try:
             load_dotenv()
             parser = argparse.ArgumentParser(description="CVE Fetcher Configuration")
@@ -52,6 +58,9 @@ class Config:
             # Validate the loaded configuration using Pydantic
             self.app_config = AppConfig(**self.config_data)  # Validate during initialization
 
+        except ValidationError as ve:
+            logging.error(f"Validation error during configuration initialization: {ve}")
+            raise
         except Exception as e:
-            logging.error(f"Error during configuration initialization: {str(e)}")
+            logging.error(f"Unexpected error during configuration initialization: {e}")
             raise
